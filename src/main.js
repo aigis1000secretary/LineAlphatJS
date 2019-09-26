@@ -1,4 +1,5 @@
 const Command = require('./command');
+var config = require('./config');
 const { Message, OpType, Location, Profile } = require('../curve-thrift/line_types');
 
 class LINE extends Command {
@@ -9,8 +10,11 @@ class LINE extends Command {
         this.stateStatus = {
             cancel: 0,
             kick: 0,
+            qrp: 0, // auto disable QRcode
+            invite: 1,
+            antikick: 0
         };
-        this.messages;
+        this.messages = new Message();
         this.payload;
         this.stateUpload = {
             file: '',
@@ -22,12 +26,17 @@ class LINE extends Command {
 
 
     get myBot() {
-        const bot = ['u1cab5ef6299af4713353b9843479952d', 'u22d94aac4e1659eb6f375ffc7cb17a53'];
+        const bot = [config.botmid];
         return bot;
+    }
+    get myAdmin() {
+        // const admin = ['ud7c9557e989b1f2a4e71d8f8c6e18153'];
+        const admin = [];
+        return admin;
     }
 
     isAdminOrBot(param) {
-        return this.myBot.includes(param);
+        return this.myAdmin.includes(param) || this.myBot.includes(param);
     }
 
     getOprationType(operations) {
@@ -41,38 +50,45 @@ class LINE extends Command {
     }
 
     poll(operation) {
-        if (operation.type == 25 || operation.type == 26) {
+        this.getOprationType(operation);
+
+        // 'SEND_MESSAGE' : 25, 'RECEIVE_MESSAGE' : 26,
+        if (operation.type == OpType['SEND_MESSAGE'] || operation.type == OpType['RECEIVE_MESSAGE']) {
+            console.log(operation.message._from, "->", operation.message.to, ":", operation.message.text);
+
             let message = new Message(operation.message);
             this.receiverID = message.to = (operation.message.to === this.myBot[0]) ? operation.message._from : operation.message.to;
             Object.assign(message, { ct: operation.createdTime.toString() });
             this.textMessage(message)
         }
 
-        if (operation.type == 13 && this.stateStatus.cancel == 1) {
-            this._cancel(operation.param2, operation.param1);
-
-        }
-
-        if (operation.type == 11 && !this.isAdminOrBot(operation.param2) && this.stateStatus.qrp == 1) {
+        // 'NOTIFIED_UPDATE_GROUP' : 11,
+        if (operation.type == OpType['NOTIFIED_UPDATE_GROUP'] && !this.isAdminOrBot(operation.param2) && this.stateStatus.qrp == 1) {
+            // kick who enable QRcode
             this._kickMember(operation.param1, [operation.param2]);
             this.messages.to = operation.param1;
-            this.qrOpenClose();
+            this.qrOpenClose(); // disable QRcode
         }
 
-        if (operation.type == 19) { //ada kick
-            // op1 = group nya
-            // op2 = yang 'nge' kick
-            // op3 = yang 'di' kick
+        // 'NOTIFIED_KICKOUT_FROM_GROUP' : 19,
+        if (operation.type == OpType['NOTIFIED_KICKOUT_FROM_GROUP'] && this.stateStatus.antikick == 1) {
+            // anti kick
+            // param1 = group id
+            // param2 = who kick someone
+            // param3 = 'someone'
+            console.log(operation.param1, ":", operation.param2, "kick", operation.param3);
+
             if (this.isAdminOrBot(operation.param3)) {
                 this._invite(operation.param1, [operation.param3]);
             }
             if (!this.isAdminOrBot(operation.param2)) {
                 this._kickMember(operation.param1, [operation.param2]);
             }
-
         }
 
-        if (operation.type == 55) { //ada reader
+        // 'NOTIFIED_READ_MESSAGE' : 55,
+        if (operation.type == OpType['NOTIFIED_READ_MESSAGE']) {
+            //ada reader
             const idx = this.checkReader.findIndex((v) => {
                 if (v.group == operation.param1) {
                     return v
@@ -92,26 +108,44 @@ class LINE extends Command {
             }
         }
 
-        if (operation.type == 13) { // diinvite
-            if (this.isAdminOrBot(operation.param2)) {
-                return this._acceptGroupInvitation(operation.param1);
+        // 'NOTIFIED_INVITE_INTO_GROUP' : 13,
+        if (operation.type == OpType['NOTIFIED_INVITE_INTO_GROUP']) {
+            // diinvite
+            if (this.stateStatus.cancel == 1) {
+                this._cancel(operation.param1, [this.mybot[0]]);
+                // ** sorce **  this._cancel(operation.param2, operation.param1);
+            }
+
+            // ** sorce **
+            // if (this.isAdminOrBot(operation.param2)) {
+            //     this._acceptGroupInvitation(operation.param1);
+            // } else {
+            //     this._cancel(operation.param1, this.myBot);
+            // }
+
+            if (this.stateStatus.invite == 1 || this.isAdminOrBot(operation.param2)) {
+                this._acceptGroupInvitation(operation.param1);
             } else {
-                return this._cancel(operation.param1, this.myBot);
+                // UnhandledPromiseRejectionWarning: TalkException: TalkException
+                // this._rejectGroupInvitation(operation.param1);
             }
         }
-        this.getOprationType(operation);
     }
 
-    command(msg, reply) {
+    async command(msg, reply) {
         if (this.messages.text !== null) {
-            if (this.messages.text === msg.trim()) {
+            if (msg.equali(this.messages.text)) {
+                console.log("command: " + msg);
                 if (typeof reply === 'function') {
-                    reply();
+                    let result = await reply();
+                    if (typeof result !== 'undefined') {    // need to check?
+                        this._sendMessage(this.messages, result);
+                    }
                     return;
                 }
                 if (Array.isArray(reply)) {
-                    reply.map((v) => {
-                        this._sendMessage(this.messages, v);
+                    reply.map(async (v) => {
+                        await this._sendMessage(this.messages, v);
                     })
                     return;
                 }
@@ -124,41 +158,46 @@ class LINE extends Command {
         this.messages = messages;
         let payload = (this.messages.text !== null) ? this.messages.text.split(' ').splice(1).join(' ') : '';
         let receiver = messages.to;
-        let sender = messages.from;
+        let sender = messages._from;
 
-        this.command('Halo', ['halo juga', 'ini siapa?']);
-        this.command('kamu siapa', this.getProfile.bind(this));
+        this.command('Hello', ['Hi', 'who is this?']);
+        this.command('who is bot', this.getProfile.bind(this));
         this.command('.status', `Your Status: ${JSON.stringify(this.stateStatus)}`);
-        this.command(`.left ${payload}`, this.leftGroupByName.bind(this));
         this.command('.speed', this.getSpeed.bind(this));
-        this.command('.kernel', this.checkKernel.bind(this));
-        this.command(`kick ${payload}`, this.OnOff.bind(this));
-        this.command(`cancel ${payload}`, this.OnOff.bind(this));
-        this.command(`qrp ${payload}`, this.OnOff.bind(this));
-        this.command(`.kickall ${payload}`, this.kickAll.bind(this));
-        this.command(`.cancelall ${payload}`, this.cancelMember.bind(this));
+        this.command('.kernel', this.checkKernel.bind(this));   // only for Linux
         this.command(`.set`, this.setReader.bind(this));
         this.command(`.recheck`, this.rechecks.bind(this));
         this.command(`.clearall`, this.clearall.bind(this));
-        this.command('.myid', `Your ID: ${messages.from}`)
-        this.command(`.ip ${payload}`, this.checkIP.bind(this))
-        this.command(`.ig ${payload}`, this.checkIG.bind(this))
+        this.command('.myid', `Your ID: ${sender}`);
+        this.command(`.creator`, this.creator.bind(this));
+
+        this.command(`kick ${payload}`, this.OnOff.bind(this));
+        this.command(`cancel ${payload}`, this.OnOff.bind(this));
+        this.command(`qrp ${payload}`, this.OnOff.bind(this));
+        this.command(`invite ${payload}`, this.OnOff.bind(this));
+        this.command(`antikick ${payload}`, this.OnOff.bind(this));
+
+        this.command(`.left ${payload}`, this.leftGroupByName.bind(this));
+        this.command(`.kickall ${payload}`, this.kickAll.bind(this));
+        this.command(`.cancelall ${payload}`, this.cancelMember.bind(this));
+        // this.command(`.ip ${payload}`, this.checkIP.bind(this));    // only for Linux
+        // this.command(`.ig ${payload}`, this.checkIG.bind(this));    // only for Linux
         this.command(`.qr ${payload}`, this.qrOpenClose.bind(this))
         this.command(`.joinqr ${payload}`, this.joinQr.bind(this));
         this.command(`.spam ${payload}`, this.spamGroup.bind(this));
-        this.command(`.creator`, this.creator.bind(this));
 
         this.command(`pap ${payload}`, this.searchLocalImage.bind(this));
         this.command(`.upload ${payload}`, this.prepareUpload.bind(this));
         this.command(`vn ${payload}`, this.vn.bind(this));
 
-        if (messages.contentType == 13) {
-            messages.contentType = 0;
-            if (!this.isAdminOrBot(messages.contentMetadata.mid)) {
-                this._sendMessage(messages, messages.contentMetadata.mid);
-            }
-            return;
-        }
+        // ** sorce ** // repeat mid
+        // if (messages.contentType == 13) {
+        //     messages.contentType = 0;
+        //     if (!this.isAdminOrBot(messages.contentMetadata.mid)) {
+        //         this._sendMessage(messages, messages.contentMetadata.mid);
+        //     }
+        //     return;
+        // }
 
         if (this.stateUpload.group == messages.to && [1, 2, 3].includes(messages.contentType)) {
             if (sender === this.stateUpload.sender) {

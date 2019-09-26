@@ -24,3 +24,8 @@ client.startx().then(async (res) => {
     }
 });
 
+String.prototype.equali = function (s1) {
+	let source = this;
+	if (!s1) s1 = "";
+	return (source.toUpperCase().trim() == s1.toUpperCase().trim());
+}

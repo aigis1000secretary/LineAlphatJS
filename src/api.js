@@ -207,7 +207,7 @@ class LineAPI {
     }
 
     async _sendMessage(message, txt, seq = 0) {
-        message.text = txt;
+        message.text = txt ? (typeof (txt) == 'string' ? txt : txt.toString()) : null; // TalkServiceClient.prototype.sendMessage
         return await this._client.sendMessage(0, message);
     }
 

@@ -57,8 +57,9 @@ class Command extends LineAPI {
         if (this.isAdminOrBot(this.messages._from)) {
             let [actions, status] = this.messages.text.split(' ');
             const action = actions.toLowerCase();
-            const state = status.toLowerCase() == 'on' ? 1 : 0;
-            this.stateStatus[action] = state;
+            if (status) {
+                this.stateStatus[action] = status.toLowerCase() == 'on' ? 1 : 0;
+            }
             this._sendMessage(this.messages, `Status: \n${JSON.stringify(this.stateStatus)}`);
         } else {
             this._sendMessage(this.messages, `You Are Not Admin`);
@@ -86,7 +87,7 @@ class Command extends LineAPI {
         })
         return {
             names: mentionStrings.slice(1),
-            cmddata: { MENTION: `{"MENTIONEES":[${mentionMember}]}` }
+            cmddata: { MENTION: `{"MENTIONEES":[${mentionMember.slice(0, 20)}]}` }
         }
     }
 
@@ -139,11 +140,7 @@ class Command extends LineAPI {
 
     checkKernel() {
         exec('uname -a', (err, sto) => {
-            if (err) {
-                this._sendMessage(this.messages, err);
-                return
-            }
-            this._sendMessage(this.messages, sto);
+            this._sendMessage(this.messages, err ? err : sto);
             return;
         });
     }
@@ -173,6 +170,7 @@ class Command extends LineAPI {
         }
         Object.assign(this.messages, msg);
         this._sendMessage(this.messages);
+        return;
     }
 
     resetStateUpload() {
@@ -294,7 +292,7 @@ class Command extends LineAPI {
         let rec = await this.recheck(this.checkReader, this.messages.to);
         const mentions = await this.mention(rec);
         this.messages.contentMetadata = mentions.cmddata;
-        await this._sendMessage(this.messages, mentions.names.join(''));
+        await this._sendMessage(this.messages, mentions.names.join('').trim());
         return;
     }
 

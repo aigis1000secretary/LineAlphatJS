@@ -14,6 +14,7 @@ class LineConnect extends LineAPI {
             this.password = options.password;
             this.certificate = options.certificate;
             this.config.Headers['X-Line-Access'] = options.authToken;
+            config.botmid = options.ID;
         }
     }
 
