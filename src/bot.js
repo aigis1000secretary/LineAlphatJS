@@ -2,16 +2,10 @@ const LineConnect = require('./connect');
 let line = require('./main.js');
 let LINE = new line();
 
+const fs = require("fs");
+let auth = fs.existsSync('./src/auth.js') ? require('./auth.js') : { authToken: '', certificate: '', ID: '', email: '', password: '' };
 
-const auth = {
-    authToken: '',
-    certificate: '',
-    email: '',
-    password: ''
-}
-
-let client = new LineConnect();
-//let client =  new LineConnect(auth);
+let client = new LineConnect(auth);
 
 client.startx().then(async (res) => {
 
