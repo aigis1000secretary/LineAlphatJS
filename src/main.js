@@ -9,10 +9,14 @@ class LINE extends Command {
         this.checkReader = [];
         this.stateStatus = {
             cancel: 0,
-            kick: 0,
-            qrp: 0, // auto disable QRcode
             invite: 1,
-            antikick: 0
+
+
+
+            antikick: 0,    // anti non-admin kick someone
+            kick: 0,        // kick kicker
+
+            disableQrcode: 0, // auto disable QRcode
         };
         this.messages = new Message();
         this.payload;
@@ -30,8 +34,7 @@ class LINE extends Command {
         return bot;
     }
     get myAdmin() {
-        // const admin = ['ud7c9557e989b1f2a4e71d8f8c6e18153'];
-        const admin = [];
+        const admin = ['u33a9a527c6ac1b24e0e4e35dde60c79d'];
         return admin;
     }
 
@@ -43,7 +46,8 @@ class LINE extends Command {
         for (let key in OpType) {
             if (operations.type == OpType[key]) {
                 if (key !== 'NOTIFIED_UPDATE_PROFILE') {
-                    console.info(`[* ${operations.type} ] ${key} `);
+                    console.info(`\n[* ${operations.type} ] ${key} `);
+                    logToFile(key, operations);
                 }
             }
         }
@@ -57,32 +61,46 @@ class LINE extends Command {
             console.log(operation.message._from, "->", operation.message.to, ":", operation.message.text);
 
             let message = new Message(operation.message);
-            this.receiverID = message.to = (operation.message.to === this.myBot[0]) ? operation.message._from : operation.message.to;
+            // this.receiverID = message.to = (operation.message.to === this.myBot[0]) ? operation.message._from : operation.message.to;
             Object.assign(message, { ct: operation.createdTime.toString() });
-            this.textMessage(message)
+            if (this.myBot.indexOf(operation.message._from) == -1) this.textMessage(message);   // not from bot
         }
 
         // 'NOTIFIED_UPDATE_GROUP' : 11,
-        if (operation.type == OpType['NOTIFIED_UPDATE_GROUP'] && !this.isAdminOrBot(operation.param2) && this.stateStatus.qrp == 1) {
-            // kick who enable QRcode
-            this._kickMember(operation.param1, [operation.param2]);
-            this.messages.to = operation.param1;
-            this.qrOpenClose(); // disable QRcode
+        if (operation.type == OpType['NOTIFIED_UPDATE_GROUP']) {
+            console.log(operation.param1, ":", operation.param2,
+                operation.param3 == 1 ? 'change group name' :
+                    operation.param3 == 4 ? 'change QR code status' : 'Unknown action');
+
+            if (!this.isAdminOrBot(operation.param2) && this.stateStatus.disableQrcode) {
+                // kick who enable QRcode
+                if (this.stateStatus.kick) {
+                    this._kickMember(operation.param1, [operation.param2]);
+                }
+                this.messages.to = operation.param1;
+                this.qrOpenClose(); // disable QRcode
+            }
         }
 
         // 'NOTIFIED_KICKOUT_FROM_GROUP' : 19,
-        if (operation.type == OpType['NOTIFIED_KICKOUT_FROM_GROUP'] && this.stateStatus.antikick == 1) {
+        if (operation.type == OpType['NOTIFIED_KICKOUT_FROM_GROUP']) {
             // anti kick
             // param1 = group id
             // param2 = who kick someone
             // param3 = 'someone'
             console.log(operation.param1, ":", operation.param2, "kick", operation.param3);
+            
+            if (this.stateStatus.antikick) {
+                if (this.isAdminOrBot(operation.param3)) {
+                    this._invite(operation.param1, [operation.param3]);
+                }
+                if (!this.isAdminOrBot(operation.param2)) {
+                    this._invite(operation.param1, [operation.param3]);
+                }
 
-            if (this.isAdminOrBot(operation.param3)) {
-                this._invite(operation.param1, [operation.param3]);
-            }
-            if (!this.isAdminOrBot(operation.param2)) {
-                this._kickMember(operation.param1, [operation.param2]);
+                if (!this.isAdminOrBot(operation.param2) && this.stateStatus.kick) {
+                    this._kickMember(operation.param1, [operation.param2]);
+                }
             }
         }
 
@@ -135,7 +153,6 @@ class LINE extends Command {
     async command(msg, reply) {
         if (this.messages.text !== null) {
             if (msg.equali(this.messages.text)) {
-                console.log("command: " + msg);
                 if (typeof reply === 'function') {
                     let result = await reply();
                     if (typeof result !== 'undefined') {    // need to check?
