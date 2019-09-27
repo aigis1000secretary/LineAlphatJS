@@ -215,7 +215,7 @@ class LineAPI {
         return this._client.kickoutFromGroup(0, group, memid);
     }
 
-    _cancel(groupid, member) {
+    _cancelInvitatio(groupid, member) {
         return this._client.cancelGroupInvitation(0, groupid, member);
     }
 
@@ -410,7 +410,7 @@ class LineAPI {
                         return;
                     }
                     console.log(res.headers);
-                    if (filepath.search(/download\//g) === -1) {
+                    if (false && filepath.search(/download\//g) === -1) {
                         fs.unlink(filepath, (err) => {
                             if (err) {
                                 console.log('err on upload', err);

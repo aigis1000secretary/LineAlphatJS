@@ -1,4 +1,5 @@
 const LineAPI = require('./api');
+const fs = require('fs');
 
 let exec = require('child_process').exec;
 
@@ -21,6 +22,35 @@ class Command extends LineAPI {
         return displayName;
     }
 
+    async getGroups() {
+        let displayGroups = await this._getGroupsJoined();
+        return displayGroups.join('\n');
+    }
+
+    async getGroupName(gid) {
+        let payload = gid || this.payload.join(' ');
+        let displayGroupName = await this._getGroups([payload]);
+        if (!displayGroupName || displayGroupName.length <= 0) {
+            return "Can not found group #" + payload;
+        }
+        return displayGroupName[0].name;
+    }
+
+    async getContacts() {
+        let displayContacts = await this._getAllContactIds();
+        return displayContacts.join('\n');
+    }
+
+    async getContactData(mid) {
+        let payload = mid || this.payload.join(' ');
+        let contact = await this._getContacts(payload.split('\n'));
+        if (!contact || contact.length <= 0) {
+            return "Can not found contact #" + payload;
+        }
+        contact = contact[0];
+        let displayContacts = { mid: payload, displayName: contact.displayName };
+        return JSON.stringify(displayContacts, null, 4);
+    }
 
     async cancelMember() {
         let groupID;
@@ -31,7 +61,7 @@ class Command extends LineAPI {
         let gid = groupID || this.messages.to;
         let { listPendingInvite } = await this.searchGroup(gid);
         if (listPendingInvite.length > 0) {
-            this._cancel(gid, listPendingInvite);
+            this._cancelInvitatio(gid, listPendingInvite);
         }
     }
 
@@ -205,10 +235,10 @@ class Command extends LineAPI {
     searchLocalImage() {
         let name = this.payload.join(' ');
         let dirName = `${__dirname}/../download/${name}.jpg`;
-        try {
+        if (fs.existsSync(dirName)) {
             this._sendImage(this.messages, dirName);
-        } catch (error) {
-            this._sendImage(this.messages, `No Photo #${name} Uploaded `);
+        } else {
+            this._sendMessage(this.messages, `No Photo #${name} Uploaded `);
         }
         return;
 
