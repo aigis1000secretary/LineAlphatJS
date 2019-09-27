@@ -60,7 +60,7 @@ class Command extends LineAPI {
             if (status) {
                 this.stateStatus[action] = status.toLowerCase() == 'on' ? 1 : 0;
             }
-            this._sendMessage(this.messages, `Status: \n${JSON.stringify(this.stateStatus)}`);
+            this._sendMessage(this.messages, `Status: \n${JSON.stringify(this.stateStatus, null, 4)}`);
         } else {
             this._sendMessage(this.messages, `You Are Not Admin`);
         }

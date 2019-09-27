@@ -8,10 +8,8 @@ class LINE extends Command {
         this.receiverID = '';
         this.checkReader = [];
         this.stateStatus = {
-            cancel: 0,
-            invite: 1,
-
-
+            cancelInvitation: 0,
+            acceptInvitation: 1,
 
             antikick: 0,    // anti non-admin kick someone
             kick: 0,        // kick kicker
@@ -30,7 +28,7 @@ class LINE extends Command {
 
 
     get myBot() {
-        const bot = [config.botmid];
+        const bot = [config.botmid, 'u759a433ed5a22b3f2daa405ab2363a67'];
         return bot;
     }
     get myAdmin() {
@@ -61,7 +59,7 @@ class LINE extends Command {
             console.log(operation.message._from, "->", operation.message.to, ":", operation.message.text);
 
             let message = new Message(operation.message);
-            // this.receiverID = message.to = (operation.message.to === this.myBot[0]) ? operation.message._from : operation.message.to;
+            this.receiverID = message.to = (operation.message.to === this.myBot[0]) ? operation.message._from : operation.message.to;
             Object.assign(message, { ct: operation.createdTime.toString() });
             if (this.myBot.indexOf(operation.message._from) == -1) this.textMessage(message);   // not from bot
         }
@@ -89,7 +87,7 @@ class LINE extends Command {
             // param2 = who kick someone
             // param3 = 'someone'
             console.log(operation.param1, ":", operation.param2, "kick", operation.param3);
-            
+
             if (this.stateStatus.antikick) {
                 if (this.isAdminOrBot(operation.param3)) {
                     this._invite(operation.param1, [operation.param3]);
@@ -128,24 +126,17 @@ class LINE extends Command {
 
         // 'NOTIFIED_INVITE_INTO_GROUP' : 13,
         if (operation.type == OpType['NOTIFIED_INVITE_INTO_GROUP']) {
-            // diinvite
-            if (this.stateStatus.cancel == 1) {
-                this._cancel(operation.param1, [this.mybot[0]]);
-                // ** sorce **  this._cancel(operation.param2, operation.param1);
+            console.log(operation.param1, ":", operation.param2, "invite", operation.param3);
+
+            // cancel invitation
+            if (this.stateStatus.cancelInvitation && !this.isAdminOrBot(operation.param2) && !this.isAdminOrBot(operation.param3)) {
+                this._cancel(operation.param1, [operation.param3]);
             }
 
-            // ** sorce **
-            // if (this.isAdminOrBot(operation.param2)) {
-            //     this._acceptGroupInvitation(operation.param1);
-            // } else {
-            //     this._cancel(operation.param1, this.myBot);
-            // }
-
-            if (this.stateStatus.invite == 1 || this.isAdminOrBot(operation.param2)) {
+            if (this.stateStatus.acceptInvitation || this.isAdminOrBot(operation.param2)) {
                 this._acceptGroupInvitation(operation.param1);
             } else {
-                // UnhandledPromiseRejectionWarning: TalkException: TalkException
-                // this._rejectGroupInvitation(operation.param1);
+                this._rejectGroupInvitation(operation.param1);
             }
         }
     }
@@ -179,7 +170,7 @@ class LINE extends Command {
 
         this.command('Hello', ['Hi', 'who is this?']);
         this.command('who is bot', this.getProfile.bind(this));
-        this.command('.status', `Your Status: ${JSON.stringify(this.stateStatus)}`);
+        this.command('.status', `Your Status: ${JSON.stringify(this.stateStatus, null, 4)}`);
         this.command('.speed', this.getSpeed.bind(this));
         this.command('.kernel', this.checkKernel.bind(this));   // only for Linux
         this.command(`.set`, this.setReader.bind(this));

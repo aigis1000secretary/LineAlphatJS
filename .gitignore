@@ -1,7 +1,13 @@
 .DS_Store
 node_modules
 line.thrift
-src/bot.js
+
+.vscode/
+
 src/tmp
-test.js
 download/
+
+test.js
+*.json
+*.txt
+*.log
