@@ -26,12 +26,16 @@ class LINE extends Command {
 
 
     get myBot() {
-        const bot = [config.botmid, 'u759a433ed5a22b3f2daa405ab2363a67'];
+        const bot = [config.botmid, 'uf0073964d53b22f4f404a8fb8f7a9e3e'];
         return bot;
     }
     get myAdmin() {
         const admin = ['u33a9a527c6ac1b24e0e4e35dde60c79d'];
         return admin;
+    }
+
+    isBot(param) {
+        return this.myBot.includes(param);
     }
 
     isAdminOrBot(param) {
@@ -57,7 +61,7 @@ class LINE extends Command {
             console.log(operation.message._from, "->", operation.message.to, ":", operation.message.text);
 
             let message = new Message(operation.message);
-            this.receiverID = message.to = (operation.message.to === this.myBot[0]) ? operation.message._from : operation.message.to;
+            this.receiverID = message.to = (operation.message.to === config.botmid) ? operation.message._from : operation.message.to;
             Object.assign(message, { ct: operation.createdTime.toString() });
             if (this.myBot.indexOf(operation.message._from) == -1) this.textMessage(message);   // not from bot
         }
@@ -133,7 +137,7 @@ class LINE extends Command {
 
             if (this.stateStatus.acceptInvitation || this.isAdminOrBot(operation.param2)) {
                 this._acceptGroupInvitation(operation.param1);
-                this._invite(operation.param1, [this.myBot[1]]);
+                this._invite(operation.param1, ['u759a433ed5a22b3f2daa405ab2363a67']);
             } else {
                 this._rejectGroupInvitation(operation.param1);
             }
@@ -233,6 +237,16 @@ class LINE extends Command {
         //     this._sendMessage(seq,lyrics);
         // }
 
+    }
+
+    async debug() {
+        let message1 = new Message();
+        message1._from = config.botmid;
+        message1.to = 'u33a9a527c6ac1b24e0e4e35dde60c79d';
+        message1.text = "debug test";
+        this._client.sendMessage(0, message1);
+
+        return;
     }
 
 }
