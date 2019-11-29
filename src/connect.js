@@ -39,10 +39,10 @@ class LineConnect extends LineAPI {
                 console.info(`Regrads Alfathdirk and thx for TCR Team \n`);
                 console.info(`Fixed by Ervan R.F @LD TEAM\n`);
 
-                let auth = "module.exports = " + JSON.stringify({ authToken: this.authToken, certificate: res.certificate, ID: mid, email: '', password: '' }, null, 4);
-                fs.writeFile("./src/auth.js", auth, "utf8", function (err, bytesRead, buffer) {
-                    if (err) { console.log(err); }
-                });
+                // let auth = "module.exports = " + JSON.stringify({ authToken: this.authToken, certificate: res.certificate, ID: mid, email: '', password: '' }, null, 4);
+                // fs.writeFile("./src/auth.js", auth, "utf8", function (err, bytesRead, buffer) {
+                //     if (err) { console.log(err); }
+                // });
 
                 console.info(`=======BOT RUNNING======\n`);
                 resolve();

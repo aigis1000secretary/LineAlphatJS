@@ -54,11 +54,11 @@ class LINE extends Command {
     }
 
     poll(operation) {
-        this.getOprationType(operation);
+        // this.getOprationType(operation);
 
         // 'SEND_MESSAGE' : 25, 'RECEIVE_MESSAGE' : 26,
         if (operation.type == OpType['SEND_MESSAGE'] || operation.type == OpType['RECEIVE_MESSAGE']) {
-            console.log(operation.message._from, "->", operation.message.to, ":", operation.message.text);
+            // console.log(operation.message._from, "->", operation.message.to, ":", operation.message.text);
 
             let message = new Message(operation.message);
             this.receiverID = message.to = (operation.message.to === config.botmid) ? operation.message._from : operation.message.to;
@@ -68,7 +68,7 @@ class LINE extends Command {
 
         // 'NOTIFIED_UPDATE_GROUP' : 11,
         if (operation.type == OpType['NOTIFIED_UPDATE_GROUP']) {
-            console.log(operation.param1, ":", operation.param2,
+            // console.log(operation.param1, ":", operation.param2,
                 operation.param3 == 1 ? 'change group name' :
                     operation.param3 == 4 ? 'change QR code status' : 'Unknown action');
 
@@ -88,7 +88,7 @@ class LINE extends Command {
             // param1 = group id
             // param2 = who kick someone
             // param3 = 'someone'
-            console.log(operation.param1, ":", operation.param2, "kick", operation.param3);
+            // console.log(operation.param1, ":", operation.param2, "kick", operation.param3);
 
             if (this.stateStatus.antikick) {
                 if (this.isAdminOrBot(operation.param3)) {
@@ -128,7 +128,7 @@ class LINE extends Command {
 
         // 'NOTIFIED_INVITE_INTO_GROUP' : 13,
         if (operation.type == OpType['NOTIFIED_INVITE_INTO_GROUP']) {
-            console.log(operation.param1, ":", operation.param2, "invite", operation.param3);
+            // console.log(operation.param1, ":", operation.param2, "invite", operation.param3);
 
             // cancel invitation
             if (this.stateStatus.cancelInvitation && !this.isAdminOrBot(operation.param2) && !this.isAdminOrBot(operation.param3)) {
